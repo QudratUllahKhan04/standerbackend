@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
 const app = express();
 
@@ -14,35 +14,38 @@ const allowedOrigins = [
 // CORS middleware options
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow Postman or curl
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    if (!origin) {
+      // Allow requests like curl/Postman with no origin
+      return callback(null, true);
     }
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Use cors middleware globally first
+// Use CORS middleware globally (handles OPTIONS automatically)
 app.use(cors(corsOptions));
 
 // Parse JSON bodies
 app.use(express.json());
 
-// MongoDB connection
+// Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-}).then(() => console.log('MongoDB connected'))
+})
+  .then(() => console.log('✅ MongoDB connected'))
   .catch((err) => {
-    console.error('MongoDB connection error:', err);
+    console.error('❌ MongoDB connection error:', err);
     process.exit(1);
   });
 
-// Certificate schema/model
+// Certificate schema and model
 const certificateSchema = new mongoose.Schema({
   name: String,
   iqama: String,
@@ -54,8 +57,8 @@ const certificateSchema = new mongoose.Schema({
 
 const Certificate = mongoose.model('Certificate', certificateSchema);
 
-// Verify endpoint
-app.post('/api/verify', async (req, res, next) => {
+// POST /api/verify endpoint
+app.post('/api/verify', async (req, res) => {
   try {
     const { query } = req.body;
 
@@ -69,27 +72,30 @@ app.post('/api/verify', async (req, res, next) => {
       return res.status(404).json({ error: 'Certificate not found' });
     }
 
-    res.status(200).json({ data: certificate });
+    return res.status(200).json({ data: certificate });
   } catch (error) {
     console.error('Verification error:', error);
-    next(error); // pass to error handler
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Global error handler - **this is critical**
+// Optional: test API root
+app.get('/', (req, res) => {
+  res.send('API is running...');
+});
+
+// Global error handler (catches CORS and other errors)
 app.use((err, req, res, next) => {
   console.error('Global error handler:', err);
-
-  // Always send CORS headers here
-  res.header('Access-Control-Allow-Origin', allowedOrigins.includes(req.headers.origin) ? req.headers.origin : '');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({ error: 'CORS error: origin not allowed' });
   }
 
-  res.status(500).json({ error: 'Server error' });
+  return res.status(500).json({ error: 'Server error' });
 });
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
 module.exports = app;
