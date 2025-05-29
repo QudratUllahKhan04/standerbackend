@@ -2,14 +2,15 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/certificate.js",
+      "src": "api/verify.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/certificate/(.*)",
-      "dest": "/api/certificate.js"
+      "src": "/api/verify",
+      "methods": ["POST"],
+      "dest": "/api/verify.js"
     }
   ]
 }
