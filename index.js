@@ -11,10 +11,10 @@ const allowedOrigins = [
   'http://localhost:3000',
 ];
 
-// CORS options
+// CORS middleware options
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow Postman, curl, etc.
+    if (!origin) return callback(null, true); // allow Postman or curl
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -26,7 +26,7 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Apply CORS middleware BEFORE all routes
+// Use cors middleware globally first
 app.use(cors(corsOptions));
 
 // Parse JSON bodies
@@ -36,27 +36,26 @@ app.use(express.json());
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-})
-.then(() => console.log('✅ MongoDB connected'))
-.catch((err) => {
-  console.error('❌ MongoDB connection error:', err);
-  process.exit(1);
-});
+}).then(() => console.log('MongoDB connected'))
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
-// Certificate schema and model
+// Certificate schema/model
 const certificateSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  iqama: { type: String, required: true },
-  course: { type: String, required: true },
+  name: String,
+  iqama: String,
+  course: String,
   cardNo: { type: String, unique: true, index: true },
-  issued: { type: String, required: true },
-  expiry: { type: String, required: true },
+  issued: String,
+  expiry: String,
 }, { timestamps: true });
 
 const Certificate = mongoose.model('Certificate', certificateSchema);
 
-// Verification endpoint
-app.post('/api/verify', async (req, res) => {
+// Verify endpoint
+app.post('/api/verify', async (req, res, next) => {
   try {
     const { query } = req.body;
 
@@ -73,25 +72,24 @@ app.post('/api/verify', async (req, res) => {
     res.status(200).json({ data: certificate });
   } catch (error) {
     console.error('Verification error:', error);
-    res.status(500).json({ error: 'Server error' });
+    next(error); // pass to error handler
   }
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// CORS error handler middleware (optional for debugging)
+// Global error handler - **this is critical**
 app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+
+  // Always send CORS headers here
+  res.header('Access-Control-Allow-Origin', allowedOrigins.includes(req.headers.origin) ? req.headers.origin : '');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   if (err.message === 'Not allowed by CORS') {
-    console.warn('Blocked by CORS:', req.headers.origin);
     return res.status(403).json({ error: 'CORS error: origin not allowed' });
   }
-  next(err);
+
+  res.status(500).json({ error: 'Server error' });
 });
 
 module.exports = app;
