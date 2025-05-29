@@ -1,11 +1,10 @@
-// /api/index.js
 const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const mongoose = require('mongoose');
+require('dotenv').config();
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
@@ -13,16 +12,21 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
-const router = express.Router();
-
-const Certificate = mongoose.model('Certificate', new mongoose.Schema({
+const CertificateSchema = new mongoose.Schema({
   name: String,
   iqama: String,
   course: String,
   cardNo: { type: String, unique: true },
   issued: String,
   expiry: String,
-}));
+});
+const Certificate = mongoose.model('Certificate', CertificateSchema);
+
+const router = express.Router();
+
+router.get('/ping', (req, res) => {
+  res.send('pong');
+});
 
 router.post('/verify', async (req, res) => {
   const { query } = req.body;
