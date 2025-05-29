@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/certificate.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/certificate/(.*)",
+      "dest": "/api/certificate.js"
+    }
+  ]
+}
