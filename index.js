@@ -42,22 +42,25 @@ const Certificate = mongoose.models.Certificate || mongoose.model('Certificate',
 app.post('/api/verify', async (req, res) => {
   try {
     const { query } = req.body;
+    console.log('Received query:', query); // ✅ Add this for debugging
 
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
     }
 
     const cert = await Certificate.findOne({ cardNo: query });
+
     if (!cert) {
       return res.status(404).json({ error: 'Certificate not found' });
     }
 
-    return res.status(200).json({ data: cert });
+    res.status(200).json({ data: cert });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error('❌ Verification error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 // Health check
 app.get('/health', (req, res) => {
