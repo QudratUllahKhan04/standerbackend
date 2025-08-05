@@ -7,9 +7,10 @@ const app = express();
 
 // Allowed origins for CORS
 const allowedOrigins = [
-  'https://stendararabia.vercel.app',
+  'https://stendararabia.vercel.app', // ✅ frontend
   'http://localhost:3000',
 ];
+
 
 // CORS middleware options
 const corsOptions = {
