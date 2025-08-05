@@ -7,7 +7,7 @@ const app = express();
 
 // Allowed origins for CORS
 const allowedOrigins = [
-  'https://stendararabia.vercel.app/',
+  'https://stendararabia.vercel.app',
   'http://localhost:3000',
 ];
 
