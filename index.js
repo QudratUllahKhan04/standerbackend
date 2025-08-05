@@ -1,70 +1,44 @@
-require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
+const mongoose = require('mongoose');
 
 const app = express();
 
-// Enhanced CORS configuration
-const allowedOrigins = [
-  'https://stendararabia.vercel.app',
-  'http://localhost:3000',
-  'https://standerbackend-woad.vercel.app'
-];
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin) || 
-        origin.includes('vercel.app') || 
-        origin.includes('localhost')) {
-      return callback(null, true);
-    }
-    
-    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-    return callback(new Error(msg), false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 200
-};
-
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
-
-// Parse JSON bodies
-app.use(express.json());
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('✅ MongoDB connected'))
-.catch((err) => {
-  console.error('❌ MongoDB connection error:', err);
-  process.exit(1);
+// CORS middleware
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://standerarabia.vercel.app');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  next();
 });
 
-// Certificate schema and model
+app.use(express.json());
+
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('✅ MongoDB connected');
+}).catch(err => {
+  console.error('❌ MongoDB connection error:', err);
+});
+
+// Schema
 const certificateSchema = new mongoose.Schema({
   name: String,
   iqama: String,
   course: String,
-  cardNo: { type: String, unique: true, index: true },
+  cardNo: { type: String, unique: true },
   issued: String,
   expiry: String,
 }, { timestamps: true });
 
-const Certificate = mongoose.model('Certificate', certificateSchema);
+const Certificate = mongoose.models.Certificate || mongoose.model('Certificate', certificateSchema);
 
-// POST /api/verify endpoint
+// Verify endpoint
 app.post('/api/verify', async (req, res) => {
   try {
     const { query } = req.body;
@@ -73,39 +47,22 @@ app.post('/api/verify', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    const certificate = await Certificate.findOne({ 
-      $or: [
-        { cardNo: query },
-        { iqama: query }
-      ]
-    });
-
-    if (!certificate) {
+    const cert = await Certificate.findOne({ cardNo: query });
+    if (!cert) {
       return res.status(404).json({ error: 'Certificate not found' });
     }
 
-    return res.status(200).json({ 
-      data: {
-        name: certificate.name,
-        iqama: certificate.iqama,
-        course: certificate.course,
-        cardNo: certificate.cardNo,
-        issued: certificate.issued,
-        expiry: certificate.expiry
-      }
-    });
-  } catch (error) {
-    console.error('Verification error:', error);
+    return res.status(200).json({ data: cert });
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK' });
+  res.status(200).json({ status: 'ok', time: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
+// Export for Vercel
 module.exports = app;
